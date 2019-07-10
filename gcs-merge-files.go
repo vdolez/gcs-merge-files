@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func gcsCompose(arguments ...string) error {
+func gsutilCommand(arguments ...string) error {
 	cmd := exec.Command("gsutil", arguments...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -39,16 +39,17 @@ func main() {
 	beginingPattern := filePattern[:wildcarPosition]
 	endingPattern := filePattern[wildcarPosition+1:]
 
-	maxFiles := 32
+	gsutilCommand("cp", beginingPattern+"000000000000"+endingPattern, fileDestination)
+
+	maxFiles := 31
 	trailingLength := 12
 	nbTour := nbFiles / maxFiles
 
 	numFile := 0
-	var outputFiles []string
 
 	for tour := 0; tour <= nbTour; tour++ {
 		countFiles := 0
-		composeCommand := "compose "
+		composeCommand := "compose " + fileDestination + " "
 		for numFile < nbFiles && countFiles < maxFiles {
 			pattern := strconv.Itoa(numFile)
 			zeros := ""
@@ -60,26 +61,13 @@ func main() {
 			countFiles++
 		}
 		if countFiles > 0 {
-			composeCommand += fileDestination + strconv.Itoa(tour)
-			outputFiles = append(outputFiles, fileDestination+strconv.Itoa(tour))
+			composeCommand += fileDestination
 			fmt.Println(composeCommand)
 			arguments := strings.Split(composeCommand, " ")
-			err = gcsCompose(arguments...)
+			err = gsutilCommand(arguments...)
 			if err != nil {
 				return
 			}
 		}
-	}
-
-	lastCommand := "compose "
-	for _, outputFile := range outputFiles {
-		lastCommand += outputFile + " "
-	}
-	lastCommand += fileDestination
-	fmt.Println(lastCommand)
-	arguments := strings.Split(lastCommand, " ")
-	err = gcsCompose(arguments...)
-	if err != nil {
-		return
 	}
 }
