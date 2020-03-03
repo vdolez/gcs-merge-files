@@ -8,6 +8,16 @@ import (
 	"strings"
 )
 
+func prefixWithZeroes(number int, trailingLength int) string {
+	//Because files are extracted from Bigquery, they contain 12 ciffers
+	pattern := strconv.Itoa(number)
+	zeros := ""
+	for i := 0; i < trailingLength-len(pattern); i++ {
+		zeros += "0"
+	}
+	return zeros + pattern
+}
+
 func gsutilCommand(arguments ...string) error {
 	cmd := exec.Command("gsutil", arguments...)
 	cmd.Stdout = os.Stdout
@@ -25,8 +35,8 @@ func main() {
 	fileDestination := args[2]
 
 	nbFiles, err := strconv.Atoi(args[1])
-	if err != nil || nbFiles <= 0 {
-		fmt.Println("Argument 2, num_files needs to be a integer greater than 0")
+	if err != nil || nbFiles <= 1 {
+		fmt.Println("Argument 2, num_files needs to be a integer greater than 1")
 		return
 	}
 
@@ -39,10 +49,9 @@ func main() {
 	beginingPattern := filePattern[:wildcarPosition]
 	endingPattern := filePattern[wildcarPosition+1:]
 
-	gsutilCommand("cp", beginingPattern+"000000000000"+endingPattern, fileDestination)
+	gsutilCommand("cp", beginingPattern+prefixWithZeroes(0, 12)+endingPattern, fileDestination)
 
 	maxFiles := 31
-	trailingLength := 12
 	nbTour := nbFiles / maxFiles
 
 	numFile := 0
@@ -51,20 +60,16 @@ func main() {
 		countFiles := 0
 		composeCommand := "compose " + fileDestination + " "
 		for numFile < nbFiles && countFiles < maxFiles {
-			pattern := strconv.Itoa(numFile)
-			zeros := ""
-			for i := 0; i < trailingLength-len(pattern); i++ {
-				zeros += "0"
-			}
-			composeCommand += beginingPattern + zeros + pattern + endingPattern + " "
+			pattern := prefixWithZeroes(numFile, 12)
+			composeCommand += beginingPattern + pattern + endingPattern + " "
 			numFile++
 			countFiles++
 		}
 		if countFiles > 0 {
 			composeCommand += fileDestination
 			fmt.Println(composeCommand)
-			arguments := strings.Split(composeCommand, " ")
-			err = gsutilCommand(arguments...)
+			composeArguments := strings.Split(composeCommand, " ")
+			err = gsutilCommand(composeArguments...)
 			if err != nil {
 				return
 			}
